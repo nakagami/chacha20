@@ -58,12 +58,11 @@ func (c *state) keyStream() [64]byte {
 		x[2], x[7], x[8], x[13] = qr(x[2], x[7], x[8], x[13])
 		x[3], x[4], x[9], x[14] = qr(x[3], x[4], x[9], x[14])
 	}
-	z := state{}
-	for i, v := range x {
-		z[i] = c[i] + v
+	for i := range x {
+		x[i] += c[i]
 	}
 	var stream [64]byte
-	for i, v := range z {
+	for i, v := range x {
 		stream[i*4] = byte(v)
 		stream[i*4+1] = byte(v >> 8)
 		stream[i*4+2] = byte(v >> 16)
