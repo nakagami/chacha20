@@ -6,14 +6,19 @@ import (
 	"math/bits"
 )
 
-var constants = [4]uint32{0x61707865, 0x3320646e, 0x79622d32, 0x6b206574}
+type Cipher struct {
+	constant [4]uint32
+	key      [8]uint32
+	counter  uint32
+	nonce    [3]uint32
+}
 
-type state [16]uint32
+var _ cipher.Stream = (*Cipher)(nil)
 
-func NewCipher(key [32]byte, count uint32, nonce [12]byte) cipher.Stream {
-	c := new(state)
-	copy(c[0:4], constants[:])
-	copy(c[4:12], []uint32{
+func NewCipher(key [32]byte, count uint32, nonce [12]byte) *Cipher {
+	c := new(Cipher)
+	c.constant = [4]uint32{0x61707865, 0x3320646e, 0x79622d32, 0x6b206574}
+	c.key = [8]uint32{
 		binary.LittleEndian.Uint32(key[0:4]),
 		binary.LittleEndian.Uint32(key[4:8]),
 		binary.LittleEndian.Uint32(key[8:12]),
@@ -22,30 +27,43 @@ func NewCipher(key [32]byte, count uint32, nonce [12]byte) cipher.Stream {
 		binary.LittleEndian.Uint32(key[20:24]),
 		binary.LittleEndian.Uint32(key[24:28]),
 		binary.LittleEndian.Uint32(key[28:32]),
-	})
-	copy(c[13:16], []uint32{
+	}
+	c.counter = count
+	c.nonce = [3]uint32{
 		binary.LittleEndian.Uint32(nonce[0:4]),
 		binary.LittleEndian.Uint32(nonce[4:8]),
 		binary.LittleEndian.Uint32(nonce[8:12]),
-	})
-	c[12] = count
+	}
 	return c
 }
 
-func (c *state) XORKeyStream(dst, src []byte) {
-	// NOTE: Skip error handling because this implementation is learning purpose.
-	stream := c.keyStream()
-	for len(src) > 0 {
-		n := copy(dst, src)
-		for i := 0; i < n; i++ {
-			dst[i] ^= stream[i]
-		}
-		dst = dst[n:]
+func (c *Cipher) toState() [16]uint32 {
+	return [16]uint32{
+		c.constant[0], c.constant[1], c.constant[2], c.constant[3],
+		c.key[0], c.key[1], c.key[2], c.key[3],
+		c.key[4], c.key[5], c.key[6], c.key[7],
+		c.counter, c.nonce[0], c.nonce[1], c.nonce[2],
 	}
 }
 
-func (c *state) keyStream() [64]byte {
-	x := *c
+func (c *Cipher) XORKeyStream(dst, src []byte) {
+	// NOTE: Skip error handling because this implementation is learning purpose.
+	for len(src) > 0 {
+		stream := c.keyStream()
+		block := len(stream)
+		if len(src) < block {
+			block = len(src)
+		}
+		for i := range block {
+			dst[i] = src[i] ^ stream[i]
+		}
+		c.counter++
+		src, dst = src[block:], dst[block:]
+	}
+}
+
+func (c *Cipher) keyStream() [64]byte {
+	x := c.toState()
 	for i := 0; i < 10; i++ {
 		// column round
 		x[0], x[4], x[8], x[12] = qr(x[0], x[4], x[8], x[12])
@@ -58,8 +76,9 @@ func (c *state) keyStream() [64]byte {
 		x[2], x[7], x[8], x[13] = qr(x[2], x[7], x[8], x[13])
 		x[3], x[4], x[9], x[14] = qr(x[3], x[4], x[9], x[14])
 	}
+	initial := c.toState()
 	for i := range x {
-		x[i] += c[i]
+		x[i] += initial[i]
 	}
 	var stream [64]byte
 	for i, v := range x {

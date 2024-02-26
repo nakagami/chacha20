@@ -61,28 +61,55 @@ func Test_keyStream(t *testing.T) {
 	for _, v := range keyStreamTestVectors {
 		t.Run(v.name, func(t *testing.T) {
 			x := NewCipher(v.key, v.counter, v.nonce)
-			if got := x.(*state).keyStream(); !reflect.DeepEqual(got, v.keyStream) {
-				t.Errorf("state.keyStream()\ngot:  %s\nwant: %s", hex.EncodeToString(got[:64]), hex.EncodeToString(v.keyStream[:64]))
+			if got := x.keyStream(); !reflect.DeepEqual(got, v.keyStream) {
+				t.Errorf("Cipher.keyStream()\ngot:  %s\nwant: %s", hex.EncodeToString(got[:64]), hex.EncodeToString(v.keyStream[:64]))
 			}
 		})
 	}
 }
 
-//func Test_state_XORKeyStream(t *testing.T) {
-//	type args struct {
-//		dst []byte
-//		src []byte
-//	}
-//	tests := []struct {
-//		name string
-//		x    state
-//		args args
-//	}{
-//		// TODO: Add test cases.
-//	}
-//	for _, tt := range tests {
-//		t.Run(tt.name, func(t *testing.T) {
-//			tt.x.XORKeyStream(tt.args.dst, tt.args.src)
-//		})
-//	}
-//}
+func Test_state_XORKeyStream(t *testing.T) {
+	encryptionTestVectors := []struct {
+		name       string
+		key        [32]byte
+		nonce      [12]byte
+		counter    uint32
+		plaintext  []byte
+		ciphertext []byte
+	}{
+		{
+			name:       "RFC8439 Appendix A.2 (Encryption Test Vector) #1",
+			key:        [32]byte(mustDecodeHex("0000000000000000000000000000000000000000000000000000000000000000")),
+			nonce:      [12]byte(mustDecodeHex("000000000000000000000000")),
+			counter:    0x00000000,
+			plaintext:  mustDecodeHex("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
+			ciphertext: mustDecodeHex("76b8e0ada0f13d90405d6ae55386bd28bdd219b8a08ded1aa836efcc8b770dc7da41597c5157488d7724e03fb8d84a376a43b8f41518a11cc387b669b2ee6586"),
+		},
+		{
+			name:       "RFC8439 Appendix A.2 (Encryption Test Vector) #2",
+			key:        [32]byte(mustDecodeHex("0000000000000000000000000000000000000000000000000000000000000001")),
+			nonce:      [12]byte(mustDecodeHex("000000000000000000000002")),
+			counter:    0x00000001,
+			plaintext:  []byte("Any submission to the IETF intended by the Contributor for publication as all or part of an IETF Internet-Draft or RFC and any statement made within the context of an IETF activity is considered an \"IETF Contribution\". Such statements include oral statements in IETF sessions, as well as written and electronic communications made at any time or place, which are addressed to"),
+			ciphertext: mustDecodeHex("a3fbf07df3fa2fde4f376ca23e82737041605d9f4f4f57bd8cff2c1d4b7955ec2a97948bd3722915c8f3d337f7d370050e9e96d647b7c39f56e031ca5eb6250d4042e02785ececfa4b4bb5e8ead0440e20b6e8db09d881a7c6132f420e52795042bdfa7773d8a9051447b3291ce1411c680465552aa6c405b7764d5e87bea85ad00f8449ed8f72d0d662ab052691ca66424bc86d2df80ea41f43abf937d3259dc4b2d0dfb48a6c9139ddd7f76966e928e635553ba76c5c879d7b35d49eb2e62b0871cdac638939e25e8a1e0ef9d5280fa8ca328b351c3c765989cbcf3daa8b6ccc3aaf9f3979c92b3720fc88dc95ed84a1be059c6499b9fda236e7e818b04b0bc39c1e876b193bfe5569753f88128cc08aaa9b63d1a16f80ef2554d7189c411f5869ca52c5b83fa36ff216b9c1d30062bebcfd2dc5bce0911934fda79a86f6e698ced759c3ff9b6477338f3da4f9cd8514ea9982ccafb341b2384dd902f3d1ab7ac61dd29c6f21ba5b862f3730e37cfdc4fd806c22f221"),
+		},
+		{
+			name:       "RFC8439 Appendix A.2 (Encryption Test Vector) #3",
+			key:        [32]byte(mustDecodeHex("1c9240a5eb55d38af333888604f6b5f0473917c1402b80099dca5cbc207075c0")),
+			nonce:      [12]byte(mustDecodeHex("000000000000000000000002")),
+			counter:    0x0000002a,
+			plaintext:  mustDecodeHex("2754776173206272696c6c69672c20616e642074686520736c6974687920746f7665730a446964206779726520616e642067696d626c6520696e2074686520776162653a0a416c6c206d696d737920776572652074686520626f726f676f7665732c0a416e6420746865206d6f6d65207261746873206f757467726162652e"),
+			ciphertext: mustDecodeHex("62e6347f95ed87a45ffae7426f27a1df5fb69110044c0d73118effa95b01e5cf166d3df2d721caf9b21e5fb14c616871fd84c54f9d65b283196c7fe4f60553ebf39c6402c42234e32a356b3e764312a61a5532055716ead6962568f87d3f3f7704c6a8d1bcd1bf4d50d6154b6da731b187b58dfd728afa36757a797ac188d1"),
+		},
+	}
+	for _, v := range encryptionTestVectors {
+		t.Run(v.name, func(t *testing.T) {
+			x := NewCipher(v.key, v.counter, v.nonce)
+			got := make([]byte, len(v.plaintext))
+			x.XORKeyStream(got, v.plaintext)
+			if !reflect.DeepEqual(got, v.ciphertext) {
+				t.Errorf("Cipher.XORKeyStream()\ngot:  %s\nwant: %s", hex.EncodeToString(got), hex.EncodeToString(v.ciphertext))
+			}
+		})
+	}
+}
