@@ -3,6 +3,7 @@ package chacha20
 import (
 	"crypto/cipher"
 	"encoding/binary"
+	"errors"
 	"math/bits"
 )
 
@@ -15,7 +16,16 @@ type Cipher struct {
 
 var _ cipher.Stream = (*Cipher)(nil)
 
-func NewCipher(key []byte, nonce [] byte, count uint64) *Cipher {
+func NewCipher(key []byte, nonce []byte, count uint64) (*Cipher, error) {
+	if len(key) != 32 {
+		err := errors.New("key must be 32 bytes")
+		return nil, err
+	}
+	if len(nonce) != 12 && len(nonce) != 8 {
+		err := errors.New("nonce must be 12 bytes or 8 bytes")
+		return nil, err
+	}
+
 	c := new(Cipher)
 	c.constant = [4]uint32{0x61707865, 0x3320646e, 0x79622d32, 0x6b206574}
 	c.key = [8]uint32{
@@ -36,7 +46,7 @@ func NewCipher(key []byte, nonce [] byte, count uint64) *Cipher {
 	if len(nonce) == 12 {
 		c.nonce[2] = binary.LittleEndian.Uint32(nonce[8:12])
 	}
-	return c
+	return c, nil
 }
 
 func (c *Cipher) toState() [16]uint32 {
