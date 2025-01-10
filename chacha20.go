@@ -50,12 +50,24 @@ func NewCipher(key []byte, nonce []byte, count uint64) (*Cipher, error) {
 }
 
 func (c *Cipher) toState() [16]uint32 {
-	// TODO: 64bit counter
+	var cn1, cn2, cn3, cn4 uint32
+	if len(c.nonce) == 3 {
+		cn1 = uint32(c.counter)
+		cn2 = c.nonce[0]
+		cn3 = c.nonce[1]
+		cn4 = c.nonce[2]
+	} else {
+		cn1 = uint32(c.counter)
+		cn2 = uint32(c.counter >> 32)
+		cn3 = c.nonce[0]
+		cn4 = c.nonce[1]
+	}
+
 	return [16]uint32{
 		c.constant[0], c.constant[1], c.constant[2], c.constant[3],
 		c.key[0], c.key[1], c.key[2], c.key[3],
 		c.key[4], c.key[5], c.key[6], c.key[7],
-		uint32(c.counter), c.nonce[0], c.nonce[1], c.nonce[2],
+		cn1, cn2, cn3, cn4,
 	}
 }
 
