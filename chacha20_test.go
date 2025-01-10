@@ -19,7 +19,7 @@ func Test_keyStream(t *testing.T) {
 		name      string
 		key       [32]byte
 		nonce     [12]byte
-		counter   uint32
+		counter   uint64
 		keyStream [64]byte
 	}{
 		{
@@ -60,7 +60,7 @@ func Test_keyStream(t *testing.T) {
 	}
 	for _, v := range keyStreamTestVectors {
 		t.Run(v.name, func(t *testing.T) {
-			x := NewCipher(v.key, v.counter, v.nonce)
+			x := NewCipher(v.key, v.counter, v.nonce[:])
 			if got := x.keyStream(); !reflect.DeepEqual(got, v.keyStream) {
 				t.Errorf("Cipher.keyStream()\ngot:  %s\nwant: %s", hex.EncodeToString(got[:64]), hex.EncodeToString(v.keyStream[:64]))
 			}
@@ -73,7 +73,7 @@ func Test_state_XORKeyStream(t *testing.T) {
 		name       string
 		key        [32]byte
 		nonce      [12]byte
-		counter    uint32
+		counter    uint64
 		plaintext  []byte
 		ciphertext []byte
 	}{
@@ -104,7 +104,7 @@ func Test_state_XORKeyStream(t *testing.T) {
 	}
 	for _, v := range encryptionTestVectors {
 		t.Run(v.name, func(t *testing.T) {
-			x := NewCipher(v.key, v.counter, v.nonce)
+			x := NewCipher(v.key, v.counter, v.nonce[:])
 			got := make([]byte, len(v.plaintext))
 			x.XORKeyStream(got, v.plaintext)
 			if !reflect.DeepEqual(got, v.ciphertext) {

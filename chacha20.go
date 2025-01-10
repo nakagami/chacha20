@@ -9,13 +9,13 @@ import (
 type Cipher struct {
 	constant [4]uint32
 	key      [8]uint32
-	counter  uint32
-	nonce    [3]uint32
+	counter  uint64
+	nonce    []uint32
 }
 
 var _ cipher.Stream = (*Cipher)(nil)
 
-func NewCipher(key [32]byte, count uint32, nonce [12]byte) *Cipher {
+func NewCipher(key [32]byte, count uint64, nonce []byte) *Cipher {
 	c := new(Cipher)
 	c.constant = [4]uint32{0x61707865, 0x3320646e, 0x79622d32, 0x6b206574}
 	c.key = [8]uint32{
@@ -29,20 +29,23 @@ func NewCipher(key [32]byte, count uint32, nonce [12]byte) *Cipher {
 		binary.LittleEndian.Uint32(key[28:32]),
 	}
 	c.counter = count
-	c.nonce = [3]uint32{
-		binary.LittleEndian.Uint32(nonce[0:4]),
-		binary.LittleEndian.Uint32(nonce[4:8]),
-		binary.LittleEndian.Uint32(nonce[8:12]),
+	c.nonce = make([]uint32, len(nonce)/4)
+	c.nonce[0] = binary.LittleEndian.Uint32(nonce[0:4])
+	c.nonce[1] = binary.LittleEndian.Uint32(nonce[4:8])
+
+	if len(nonce) == 12 {
+		c.nonce[2] = binary.LittleEndian.Uint32(nonce[8:12])
 	}
 	return c
 }
 
 func (c *Cipher) toState() [16]uint32 {
+	// TODO: 64bit counter
 	return [16]uint32{
 		c.constant[0], c.constant[1], c.constant[2], c.constant[3],
 		c.key[0], c.key[1], c.key[2], c.key[3],
 		c.key[4], c.key[5], c.key[6], c.key[7],
-		c.counter, c.nonce[0], c.nonce[1], c.nonce[2],
+		uint32(c.counter), c.nonce[0], c.nonce[1], c.nonce[2],
 	}
 }
 
