@@ -15,7 +15,7 @@ type Cipher struct {
 
 var _ cipher.Stream = (*Cipher)(nil)
 
-func NewCipher(key [32]byte, count uint64, nonce []byte) *Cipher {
+func NewCipher(key []byte, nonce [] byte, count uint64) *Cipher {
 	c := new(Cipher)
 	c.constant = [4]uint32{0x61707865, 0x3320646e, 0x79622d32, 0x6b206574}
 	c.key = [8]uint32{
