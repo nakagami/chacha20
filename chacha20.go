@@ -77,18 +77,13 @@ func (c *Cipher) toState() [16]uint32 {
 }
 
 func (c *Cipher) XORKeyStream(dst, src []byte) {
-	// NOTE: Skip error handling because this implementation is learning purpose.
-	for len(src) > 0 {
-		stream := c.keyStream()
-		block := len(stream)
-		if len(src) < block {
-			block = len(src)
+	for i := range len(src) {
+		dst[i] = src[i] ^ c.block[c.block_pos]
+		c.block_pos++
+		if len(c.block) == c.block_pos {
+			c.counter++
+			c.setChaCha20RoundBlock()
 		}
-		for i := range block {
-			dst[i] = src[i] ^ stream[i]
-		}
-		c.counter++
-		src, dst = src[block:], dst[block:]
 	}
 }
 
