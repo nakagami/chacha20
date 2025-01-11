@@ -8,10 +8,12 @@ import (
 )
 
 type Cipher struct {
-	constant [4]uint32
-	key      [8]uint32
-	counter  uint64
-	nonce    []uint32
+	constant  [4]uint32
+	key       [8]uint32
+	counter   uint64
+	nonce     []uint32
+	block     [64]byte
+	block_pos int
 }
 
 var _ cipher.Stream = (*Cipher)(nil)
@@ -46,6 +48,9 @@ func NewCipher(key []byte, nonce []byte, count uint64) (*Cipher, error) {
 	if len(nonce) == 12 {
 		c.nonce[2] = binary.LittleEndian.Uint32(nonce[8:12])
 	}
+
+	c.setChaCha20RoundBlock()
+
 	return c, nil
 }
 
@@ -85,6 +90,11 @@ func (c *Cipher) XORKeyStream(dst, src []byte) {
 		c.counter++
 		src, dst = src[block:], dst[block:]
 	}
+}
+
+func (c *Cipher) setChaCha20RoundBlock() {
+	c.block = c.keyStream()
+	c.block_pos = 0
 }
 
 func (c *Cipher) keyStream() [64]byte {
