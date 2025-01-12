@@ -88,11 +88,11 @@ func (c *Cipher) XORKeyStream(dst, src []byte) {
 }
 
 func (c *Cipher) setChaCha20RoundBlock() {
-	c.block = c.keyStream()
+	c.block = c.chaCha20RoundBlock()
 	c.block_pos = 0
 }
 
-func (c *Cipher) keyStream() [64]byte {
+func (c *Cipher) chaCha20RoundBlock() [64]byte {
 	x := c.toState()
 	for i := 0; i < 10; i++ {
 		// column round
@@ -110,14 +110,14 @@ func (c *Cipher) keyStream() [64]byte {
 	for i := range x {
 		x[i] += initial[i]
 	}
-	var stream [64]byte
+	var block [64]byte
 	for i, v := range x {
-		stream[i*4] = byte(v)
-		stream[i*4+1] = byte(v >> 8)
-		stream[i*4+2] = byte(v >> 16)
-		stream[i*4+3] = byte(v >> 24)
+		block[i*4] = byte(v)
+		block[i*4+1] = byte(v >> 8)
+		block[i*4+2] = byte(v >> 16)
+		block[i*4+3] = byte(v >> 24)
 	}
-	return stream
+	return block
 }
 
 func qr(a, b, c, d uint32) (uint32, uint32, uint32, uint32) {
